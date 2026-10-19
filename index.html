@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GegeKaraOke - Mobile & TV Network Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      touch-action: manipulation;
+    }
+    /* Fullscreen layout for video player */
+    #playerBox:fullscreen {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      border-radius: 0 !important;
+      background-color: #000 !important;
+    }
+    @keyframes marquee {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+    .animate-marquee {
+      display: inline-block;
+      animation: marquee 20s linear infinite;
+    }
+
+    /* --- Custom Party Gradient Background Animation --- */
+    @keyframes partyGradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .custom-party-bg {
+      background: linear-gradient(-45deg, #0f172a, #3b0764, #581c87, #0284c7);
+      background-size: 400% 400%;
+      animation: partyGradient 15s ease infinite;
+    }
+
+    /* --- Video Player Transparency Fix --- */
+    #mediaPlayer {
+      background: transparent !important;
+      mix-blend-mode: screen;
+    }
+
+    /* --- DESKTOP / TV / LANDSCAPE LAYOUT FIX --- */
+    @media (min-width: 768px) {
+      body {
+        flex-direction: row !important;
+        flex-wrap: wrap;
+      }
+      #display-section {
+        flex: 1 1 70% !important;
+        height: 78vh !important;
+      }
+      #control-section {
+        flex: 1 1 30% !important;
+        height: 78vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      #library-section {
+        flex: 1 1 100% !important;
+        height: 22vh !important;
+      }
+    }
+
+    button:focus, input:focus {
+      outline: none !important;
+      ring-width: 4px !important;
+      box-shadow: 0 0 15px rgba(251, 191, 36, 0.8) !important;
+      border-color: #fbbf24 !important;
+      transform: scale(1.05);
+      transition: all 0.15s ease-in-out;
+      z-index: 20;
+    }
+
+    /* Custom Scrollbar para sa Reserve Panel */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col overflow-hidden select-none">
+
+  <!-- ================= 1. TOP DISPLAY / SCREEN AREA ================= -->
+  <section id="display-section" class="flex-none h-[35%] md:h-[78%] bg-black p-2 flex flex-col justify-between border-b border-slate-800">
+    <div id="playerBox" class="w-full h-full custom-party-bg border border-slate-800 rounded-lg relative overflow-hidden flex flex-col items-center justify-center">
+      
+      <div class="absolute top-2 left-2 flex flex-col gap-1 z-40 pointer-events-none">
+        <div id="nowPlayingText" class="text-[10px] sm:text-xs font-bold text-amber-300 uppercase tracking-wider bg-black/80 px-2 py-1 rounded border border-amber-500/50 shadow backdrop-blur-sm truncate max-w-[200px]">
+          NOW PLAYING: No track playing
+        </div>
+        <div id="nextSongPopup" class="text-[10px] sm:text-xs font-bold text-emerald-300 uppercase tracking-wider bg-black/80 px-2 py-1 rounded border border-emerald-500/50 shadow backdrop-blur-sm hidden animate-pulse truncate max-w-[200px]">
+          🎵 COMING SONG: <span id="nextSongTitle" class="text-white">None</span>
+        </div>
+      </div>
+
+      <div class="absolute top-2 right-2 z-40 bg-white p-0.5 rounded-full border border-red-600 shadow flex items-center justify-center pointer-events-none">
+        <img id="appLogo" src="logo.png" alt="TAC Logo" class="h-8 w-8 rounded-full object-contain" onerror="this.style.display='none'; document.getElementById('fallbackLogoText').style.display='block';">
+        <span id="fallbackLogoText" class="text-[9px] font-bold text-slate-900 uppercase px-1 hidden">TAC</span>
+      </div>
+
+      <video id="mediaPlayer" class="w-full h-full object-contain hidden" autoplay></video>
+      <audio id="audioPlayer" class="w-full hidden" autoplay></audio>
+      
+      <!-- BILOG NA LOGO SA GITNA NG SCREEN HABANG STANDBY -->
+      <div id="playerPlaceholder" class="flex flex-col items-center justify-center p-4 text-center z-10">
+        <div class="w-28 h-28 sm:w-44 sm:h-44 lg:w-56 lg:h-56 rounded-full overflow-hidden border-4 border-amber-400/80 shadow-2xl bg-white flex items-center justify-center mb-3 animate-pulse">
+          <img src="logo.png" alt="TAC Logo" class="w-full h-full object-cover">
+        </div>
+        <p class="text-sm sm:text-base font-bold text-amber-300 drop-shadow-md">GegeKaraOke Screen</p>
+        <span class="text-xs text-slate-300 drop-shadow">Select or enter song code to start</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= 2. RIGHT SIDE CONTROL & RESERVE DISPLAY SECTION ================= -->
+  <section id="control-section" class="flex-1 md:flex-none bg-slate-900 p-2 flex flex-col gap-1.5 border-b border-slate-800 min-h-0 overflow-hidden">
+    
+    <!-- Code Input Display -->
+    <div class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 flex justify-between items-center flex-none">
+      <div class="flex flex-col flex-1 min-w-0 pr-2">
+        <span id="keypadStatus" class="text-[9px] font-bold uppercase text-emerald-400">Ready</span>
+        <div id="matchSongTitle" class="text-xs text-purple-300 truncate font-medium">Type song code...</div>
+      </div>
+      <div id="codeDisplay" class="text-2xl font-mono font-bold tracking-widest text-amber-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">000000</div>
+    </div>
+
+    <!-- Pitch/Key Indicators -->
+    <div class="grid grid-cols-3 gap-1 text-[10px] flex-none">
+      <div class="bg-red-950/80 border border-red-800/80 rounded py-0.5 text-center font-bold text-red-200">KEY: <span id="keyVal">0</span></div>
+      <div class="bg-amber-950/80 border border-amber-800/80 rounded py-0.5 text-center font-bold text-amber-200">TEM: <span id="temVal">0</span></div>
+      <div class="bg-emerald-950/80 border border-emerald-800/80 rounded py-0.5 text-center font-bold text-emerald-200">MEL: 40</div>
+    </div>
+
+    <!-- Keypad Grid -->
+    <div class="grid grid-cols-4 gap-1 flex-none">
+      <button onclick="pressNum('1')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">1</button>
+      <button onclick="pressNum('2')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">2</button>
+      <button onclick="pressNum('3')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">3</button>
+      <button onclick="toggleFullscreen()" class="bg-purple-800 active:bg-purple-600 py-2 rounded-lg text-xs font-bold text-white shadow">📺 FULL</button>
+      
+      <button onclick="pressNum('4')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">4</button>
+      <button onclick="pressNum('5')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">5</button>
+      <button onclick="pressNum('6')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">6</button>
+      <button onclick="scrollReserveList()" class="bg-purple-800 active:bg-purple-600 py-2 rounded-lg text-xs font-semibold shadow">RSV List</button>
+      
+      <button onclick="pressNum('7')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">7</button>
+      <button onclick="pressNum('8')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">8</button>
+      <button onclick="pressNum('9')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">9</button>
+      <button onclick="openSearchModal()" class="bg-blue-700 active:bg-blue-500 py-2 rounded-lg text-sm flex items-center justify-center text-white shadow">🔍</button>
+      
+      <button onclick="clearCode()" class="bg-red-700 active:bg-red-500 py-2 rounded-lg font-bold text-sm text-white shadow">CAN</button>
+      <button onclick="pressNum('0')" class="bg-slate-800 active:bg-purple-600 py-2 rounded-lg font-bold text-base shadow">0</button>
+      <button onclick="reserveSong()" class="bg-emerald-700 active:bg-emerald-500 py-2 rounded-lg font-bold text-sm text-white shadow">RES</button>
+      <button onclick="playNextInQueue()" class="bg-blue-900 active:bg-blue-700 py-2 rounded-lg text-[10px] font-bold text-white shadow">1st RSV</button>
+    </div>
+
+    <!-- Quick Controls -->
+    <div class="grid grid-cols-4 gap-1 flex-none">
+      <button onclick="playNextInQueue()" class="bg-slate-800 active:bg-slate-700 py-1 rounded text-[10px] font-bold uppercase text-slate-300">Next</button>
+      <button onclick="replayCurrentSong()" class="bg-slate-800 active:bg-slate-700 py-1 rounded text-[10px] font-bold uppercase text-slate-300">Replay</button>
+      <button onclick="toggleVocal()" class="bg-slate-800 active:bg-slate-700 py-1 rounded text-[10px] font-bold uppercase text-slate-300">Vocal</button>
+      <button onclick="stopSong()" class="bg-slate-800 active:bg-slate-700 py-1 rounded text-[10px] font-bold uppercase text-slate-300">Stop</button>
+    </div>
+
+    <!-- 🎵 PERMANENT ON-SCREEN LIVE RESERVE LIST PANEL -->
+    <div class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 flex flex-col min-h-[100px] overflow-hidden mt-1">
+      <div class="flex justify-between items-center pb-1 mb-1 border-b border-slate-800 flex-none">
+        <span class="text-[11px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">
+          📋 Reserved Songs List (<span id="queueCount">0</span>)
+        </span>
+        <button onclick="clearQueue()" class="text-[9px] text-red-400 hover:text-red-300 underline">Clear All</button>
+      </div>
+      
+      <div id="queueContainer" class="flex-1 overflow-y-auto space-y-1 text-xs pr-1">
+        <div class="text-slate-500 text-[11px] italic text-center py-2">No songs reserved yet.</div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= 3. BOTTOM SONG LIBRARY SECTION ================= -->
+  <section id="library-section" class="flex-none md:h-[22vh] bg-slate-950 flex flex-col min-h-0 h-[25%]">
+    <div class="p-2 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-2">
+      <input type="text" id="searchInput" placeholder="Or search by title..." class="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-purple-500">
+      <span id="songCount" class="bg-slate-800 text-[10px] px-2 py-1 rounded-full text-purple-300 font-mono flex-none">0 songs</span>
+    </div>
+    
+    <div id="songListContainer" class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+      <div class="text-center text-slate-500 mt-2">Loading songs from database...</div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER MARQUEE ================= -->
+  <footer class="bg-purple-950 border-t border-purple-800 py-1 overflow-hidden whitespace-nowrap flex-none">
+    <div class="inline-block animate-marquee text-amber-300 font-semibold text-[10px] tracking-wider">
+      🎤 Welcome to GegeKaraOke Network Edition! Enjoy singing with family and friends! Type code or select from library to reserve songs. Have fun! 🎶
+    </div>
+  </footer>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    let songs = [];
+    let queue = [];
+    let currentCode = "000000";
+    let currentPlaying = null;
+
+    // --- Safe Speech Functionality ---
+    function speakText(text) {
+      try {
+        if ('speechSynthesis' in window && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          window.speechSynthesis.speak(utterance);
+        }
+      } catch (e) {
+        console.warn("Speech synthesis error or not supported:", e);
+      }
+    }
+
+    // --- Load Songs from static songs.json Database (WITH CACHE BUSTER) ---
+    async function loadSongsFromServer() {
+      try {
+        // May dagdag na timestamp (?v=...) para hindi i-cache ng browser ang lumang listahan
+        const response = await fetch('songs.json?v=' + new Date().getTime());
+        if (!response.ok) {
+          throw new Error('Failed to load songs.json');
+        }
+        
+        songs = await response.json();
+        songs.sort((a, b) => a.id - b.id);
+
+        renderSongList(songs);
+        document.getElementById('songCount').innerText = `${songs.length} songs`;
+      } catch (error) {
+        console.error("Error loading song database:", error);
+        document.getElementById('songListContainer').innerHTML = '<div class="text-center text-red-400 text-xs mt-2">Failed to load songs.json database. Make sure songs.json exists!</div>';
+      }
+    }
+
+    // --- Render Song List ---
+    function renderSongList(songArray) {
+      const container = document.getElementById('songListContainer');
+      container.innerHTML = '';
+      if (songArray.length === 0) {
+        container.innerHTML = '<div class="text-center text-slate-500 text-xs mt-2">No songs found.</div>';
+        return;
+      }
+      songArray.forEach((song) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-slate-900 border border-slate-800 p-2 rounded';
+        div.innerHTML = `
+          <span class="truncate flex-1 mr-2 text-slate-200">#${song.id} - ${song.title}</span>
+          <button onclick="addToQueue(${song.id})" class="bg-emerald-700 active:bg-emerald-500 text-white text-[10px] px-2.5 py-1 rounded font-bold">RES</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function openSearchModal() {
+      const input = document.getElementById('searchInput');
+      input.focus();
+      input.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function updateMatchDisplay() {
+      const matchTitle = document.getElementById('matchSongTitle');
+      if (currentCode === "000000" || currentCode === "") {
+        matchTitle.innerText = "Type song code...";
+        matchTitle.className = "text-xs text-purple-300 truncate font-medium";
+        return;
+      }
+      const songId = parseInt(currentCode);
+      const found = songs.find(s => s.id === songId);
+      if (found) {
+        matchTitle.innerText = `Found: ${found.title}`;
+        matchTitle.className = "text-xs text-emerald-400 font-bold truncate";
+      } else {
+        matchTitle.innerText = "Searching code...";
+        matchTitle.className = "text-xs text-slate-400 truncate";
+      }
+    }
+
+    function pressNum(num) {
+      if (currentCode === "000000") currentCode = num;
+      else if (currentCode.length < 6) currentCode += num;
+      
+      document.getElementById('codeDisplay').innerText = currentCode;
+      speakText(num);
+      updateMatchDisplay();
+    }
+
+    function clearCode() {
+      currentCode = "000000";
+      document.getElementById('codeDisplay').innerText = currentCode;
+      document.getElementById('matchSongTitle').innerText = "Type song code...";
+      document.getElementById('matchSongTitle').className = "text-xs text-purple-300 truncate font-medium";
+    }
+
+    function reserveSong() {
+      if (currentCode === "000000") return;
+      const songId = parseInt(currentCode);
+      const found = songs.find(s => s.id === songId);
+      if (found) {
+        queue.push(found);
+        renderQueue();
+        speakText("Reserved " + found.title);
+        clearCode();
+        if (!currentPlaying) {
+          playNextInQueue();
+        }
+      } else {
+        const matchTitle = document.getElementById('matchSongTitle');
+        matchTitle.innerText = "Try another Code!";
+        matchTitle.className = "text-xs text-red-400 font-bold truncate";
+        speakText("Song code not found. Try another code.");
+        
+        setTimeout(() => {
+          clearCode();
+        }, 2000);
+      }
+    }
+
+    function addToQueue(id) {
+      const found = songs.find(s => s.id === id);
+      if (found) {
+        queue.push(found);
+        renderQueue();
+        speakText("Reserved " + found.title);
+        if (!currentPlaying) {
+          playNextInQueue();
+        }
+      }
+    }
+
+    // --- LIVE ON-SCREEN RESERVE LIST RENDERER ---
+    function renderQueue() {
+      const qContainer = document.getElementById('queueContainer');
+      const qCount = document.getElementById('queueCount');
+      const nextTitle = document.getElementById('nextSongTitle');
+
+      qCount.innerText = queue.length;
+
+      if (queue.length === 0) {
+        qContainer.innerHTML = '<div class="text-slate-500 text-[11px] italic text-center py-2">No songs reserved yet.</div>';
+        document.getElementById('nextSongPopup').classList.add('hidden');
+        return;
+      }
+
+      qContainer.innerHTML = '';
+      queue.forEach((song, idx) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-slate-900 border border-slate-800/80 px-2 py-1 rounded text-[11px] text-slate-200';
+        div.innerHTML = `
+          <span class="truncate flex-1 font-medium"><strong class="text-purple-400">${idx + 1}.</strong> #${song.id} ${song.title}</span>
+          <button onclick="removeFromQueue(${idx})" class="text-red-400 hover:text-red-300 font-bold ml-1 px-1">✕</button>
+        `;
+        qContainer.appendChild(div);
+      });
+
+      if (queue.length > 0) {
+        nextTitle.innerText = queue[0].title;
+      }
+    }
+
+    function removeFromQueue(index) {
+      queue.splice(index, 1);
+      renderQueue();
+    }
+
+    function clearQueue() {
+      queue = [];
+      renderQueue();
+    }
+
+    function scrollReserveList() {
+      const qContainer = document.getElementById('queueContainer');
+      qContainer.scrollTop += 50;
+      if (qContainer.scrollTop + qContainer.clientHeight >= qContainer.scrollHeight) {
+        qContainer.scrollTop = 0;
+      }
+    }
+
+    function checkTimeProgress(mediaElement) {
+      const popup = document.getElementById('nextSongPopup');
+      if (!mediaElement.duration) return;
+      
+      const timeLeft = mediaElement.duration - mediaElement.currentTime;
+      if (timeLeft <= 30 && queue.length > 0) {
+        popup.classList.remove('hidden');
+      } else {
+        popup.classList.add('hidden');
+      }
+    }
+
+    function playNextInQueue() {
+      document.getElementById('nextSongPopup').classList.add('hidden');
+      if (queue.length > 0) {
+        const song = queue.shift();
+        currentPlaying = song;
+        renderQueue();
+        playSong(song.url, song.title);
+      } else {
+        stopSong();
+      }
+    }
+
+    // --- PlaySong preserving URL encoding (%20) ---
+    function playSong(url, title) {
+      const video = document.getElementById('mediaPlayer');
+      const audio = document.getElementById('audioPlayer');
+      const placeholder = document.getElementById('playerPlaceholder');
+      const nowPlaying = document.getElementById('nowPlayingText');
+
+      nowPlaying.innerText = `NOW PLAYING: ${title}`;
+      if (placeholder) placeholder.classList.add('hidden');
+
+      const cleanUrl = url;
+
+      if (cleanUrl.toLowerCase().endsWith('.mp4') || cleanUrl.toLowerCase().endsWith('.avi') || cleanUrl.toLowerCase().endsWith('.mkv')) {
+        audio.pause(); 
+        audio.classList.add('hidden');
+        
+        video.src = cleanUrl;
+        video.classList.remove('hidden');
+        video.load();
+        
+        video.play().catch(e => {
+          console.error("Playback error:", e);
+          setTimeout(() => playNextInQueue(), 2000);
+        });
+
+        video.ontimeupdate = () => checkTimeProgress(video);
+        video.onerror = () => {
+          console.error("Video file not found or unsupported format:", cleanUrl);
+          nowPlaying.innerText = `UNSUPPORTED / NOT FOUND: ${title}`;
+          setTimeout(() => playNextInQueue(), 2500);
+        };
+        video.onended = () => playNextInQueue();
+      } else {
+        video.pause(); 
+        video.classList.add('hidden');
+        
+        audio.src = cleanUrl;
+        audio.classList.remove('hidden');
+        audio.load();
+        
+        audio.play().catch(e => {
+          console.error("Audio playback error:", e);
+          setTimeout(() => playNextInQueue(), 2000);
+        });
+
+        audio.ontimeupdate = () => checkTimeProgress(audio);
+        audio.onerror = () => {
+          console.error("Audio file not found:", cleanUrl);
+          nowPlaying.innerText = `ERROR LOADING: ${title}`;
+          setTimeout(() => playNextInQueue(), 2500);
+        };
+        audio.onended = () => playNextInQueue();
+      }
+    }
+
+    function stopSong() {
+      const v = document.getElementById('mediaPlayer');
+      const a = document.getElementById('audioPlayer');
+      v.pause(); v.currentTime = 0; v.classList.add('hidden');
+      a.pause(); a.currentTime = 0; a.classList.add('hidden');
+      document.getElementById('playerPlaceholder').classList.remove('hidden');
+      document.getElementById('nowPlayingText').innerText = "NOW PLAYING: No track playing";
+      document.getElementById('nextSongPopup').classList.add('hidden');
+      currentPlaying = null;
+    }
+
+    function replayCurrentSong() {
+      if (currentPlaying) {
+        playSong(currentPlaying.url, currentPlaying.title);
+      }
+    }
+
+    function toggleFullscreen() {
+      const elem = document.getElementById('playerBox');
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+          elem.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    function toggleVocal() {
+      const video = document.getElementById('mediaPlayer');
+      video.muted = !video.muted;
+      speakText(video.muted ? "Vocal Muted" : "Vocal On");
+    }
+
+    function adjustVolume(change) {
+      const video = document.getElementById('mediaPlayer');
+      const audio = document.getElementById('audioPlayer');
+      
+      if (!video.classList.contains('hidden')) {
+        video.volume = Math.min(1, Math.max(0, video.volume + change));
+      } else if (!audio.classList.contains('hidden')) {
+        audio.volume = Math.min(1, Math.max(0, audio.volume + change));
+      }
+    }
+
+    // --- KEYBOARD EVENT HANDLERS ---
+    document.addEventListener('keydown', (e) => {
+      const activeElem = document.activeElement;
+      if (activeElem && activeElem.tagName === 'INPUT') return;
+
+      if (e.key === 'Escape') {
+        clearCode();
+        return;
+      }
+
+      if (!isNaN(e.key) && e.key !== ' ') {
+        pressNum(e.key);
+      } else if (e.key === 'Enter') {
+        reserveSong();
+      } else if (e.key === 'MediaTrackNext' || e.key === 'ArrowRight') {
+        playNextInQueue();
+      } else if (e.key === 'MediaStop') {
+        stopSong();
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        clearCode();
+      } else if (e.key === ' ' || e.key === 'MediaPlayPause') {
+        e.preventDefault();
+        const video = document.getElementById('mediaPlayer');
+        const audio = document.getElementById('audioPlayer');
+        if (!video.classList.contains('hidden')) {
+          video.paused ? video.play() : video.pause();
+        } else if (!audio.classList.contains('hidden')) {
+          audio.paused ? audio.play() : audio.pause();
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        adjustVolume(0.1);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        adjustVolume(-0.1);
+      }
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const kw = e.target.value.toLowerCase();
+      renderSongList(songs.filter(s => s.title.toLowerCase().includes(kw) || s.id.toString().includes(kw)));
+    });
+
+    window.onload = loadSongsFromServer;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('Service Worker registered!'))
+          .catch((err) => console.log('Service Worker registration failed: ', err));
+      });
+    }
+  </script>
+</body>
+</html>
